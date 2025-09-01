@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk2077 Breach Protocol Solver</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 CYBERPUNK2077 BREACH PROTOCOL 🎮</h1>
+            <h2>SOLVER v2.0.77</h2>
+        </header>
+
+        <div class="setup-section">
+            <div class="grid-setup">
+                <h3>Grid Setup</h3>
+                <label>Grid Size:</label>
+                <div class="button-group" id="gridSizeButtons">
+                    <button class="option-btn active" data-size="5">5x5</button>
+                    <button class="option-btn" data-size="6">6x6</button>
+                    <button class="option-btn" data-size="7">7x7</button>
+                </div>
+                
+                <label>Buffer Size:</label>
+                <div class="button-group" id="bufferSizeButtons">
+                    <button class="option-btn active" data-buffer="4">4</button>
+                    <button class="option-btn" data-buffer="5">5</button>
+                    <button class="option-btn" data-buffer="6">6</button>
+                    <button class="option-btn" data-buffer="7">7</button>
+                    <button class="option-btn" data-buffer="8">8</button>
+                    <button class="option-btn" data-buffer="9">9</button>
+                    <button class="option-btn" data-buffer="10">10</button>
+                    <button class="option-btn" data-buffer="11">11</button>
+                    <button class="option-btn" data-buffer="12">12</button>
+                    <button class="option-btn" data-buffer="13">13</button>
+                    <button class="option-btn" data-buffer="14">14</button>
+                    <button class="option-btn" data-buffer="15">15</button>
+                    <button class="option-btn" data-buffer="16">16</button>
+                </div>
+                
+                <button onclick="generateGrid()" class="generate-btn">Generate Grid</button>
+            </div>
+
+            <div class="hex-mapping">
+                <h3>Grid Hex Code Mapping</h3>
+                <p class="mapping-instructions">Click the hex codes to fill the grid in order:</p>
+                <div class="hex-codes" id="gridHexCodes">
+                    <!-- Will be populated by script.js -->
+                </div>
+                <button onclick="clearGrid()" class="clear-btn">Clear Grid</button>
+            </div>
+        </div>
+
+        <div class="grid-container" id="gridContainer" style="display: none;">
+            <h3>Enter Grid Values (Click hex codes above or click grid cells to clear)</h3>
+            <div class="grid-wrapper">
+                <div class="grid-with-labels">
+                    <div class="grid" id="grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="daemon-setup" id="daemonSetup" style="display: none;">
+            <h3>Daemon Setup</h3>
+            
+            <div class="daemon-size-selection">
+                <label>Number of Daemons:</label>
+                <div class="button-group" id="daemonCountButtons">
+                    <button class="option-btn active" data-count="1">1</button>
+                    <button class="option-btn" data-count="2">2</button>
+                    <button class="option-btn" data-count="3">3</button>
+                    <button class="option-btn" data-count="4">4</button>
+                    <button class="option-btn" data-count="5">5</button>
+                    <button class="option-btn" data-count="6">6</button>
+                </div>
+                <button onclick="generateDaemons()" class="generate-btn">Generate Daemon Inputs</button>
+            </div>
+
+            <div class="hex-mapping" id="daemonHexMapping" style="display: none;">
+                <h4>Daemon Hex Code Mapping</h4>
+                <p class="mapping-instructions">Select a daemon input below, then click hex codes to fill it:</p>
+                <div class="hex-codes" id="daemonHexCodes">
+                    <!-- Will be populated by script.js -->
+                </div>
+            </div>
+
+            <div id="daemonInputs" style="display: none;">
+                <!-- Will be populated by script.js -->
+            </div>
+
+            <button onclick="solve()" class="solve-btn" id="solveBtn" style="display: none;">🔍 Solve Puzzle</button>
+            
+            <div id="progressContainer" class="progress-container" style="display: none;">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text" id="progressText">0% - 0m 0s elapsed</div>
+                <div class="debug-info" id="debugInfo" style="display: none;">
+                    <!-- Will be populated by script.js -->
+                </div>
+            </div>
+        </div>
+
+        <div class="solution" id="solution" style="display: none;">
+            <h3>🗺️ Solution</h3>
+            <div id="solutionPath"></div>
+            <div id="daemonStatus"></div>
+        </div>
+
+        <div class="solution-grid-section" id="solutionGridSection" style="display: none;">
+            <div id="solutionGrid"></div>
+        </div>
+
+        <button onclick="reset()" class="reset-btn" style="display: none;" id="resetBtn">🔄 Solve Another Puzzle</button>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            Made with ❤️ by <a href="https://github.com/amec0e" target="_blank" rel="noopener noreferrer">amec0e</a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
