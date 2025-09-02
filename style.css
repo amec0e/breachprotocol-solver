@@ -33,6 +33,7 @@ header h2 {
     margin: 10px 0 0 0;
     font-size: 1.2em;
     color: #ffff00;
+    text-shadow: 0 0 5px #ffff00;
 }
 
 .progress-container {
@@ -90,6 +91,7 @@ header h2 {
 .solution-stats h4 {
     color: #ffff00;
     margin-bottom: 10px;
+    text-shadow: 0 0 5px #ffff00;
 }
 
 .solution-stats div {
@@ -290,25 +292,6 @@ header {
     font-weight: bold;
 }
 
-.grid-cell.solution-path {
-    background: #00ff41 !important;
-    color: #000 !important;
-    font-weight: bold;
-    box-shadow: 0 0 10px #00ff41;
-}
-
-.grid-cell.solution-path::after {
-    content: '';
-    position: absolute;
-    top: -3px;
-    left: -3px;
-    right: -3px;
-    bottom: -3px;
-    border: 3px solid #ffff00;
-    pointer-events: none;
-    z-index: 1;
-}
-
 .hex-code {
     font-size: 11px;
     line-height: 1;
@@ -339,6 +322,7 @@ header {
 .daemon-setup h3, .daemon-setup h4 {
     margin-top: 0;
     color: #ffff00;
+    text-shadow: 0 0 5px #ffff00;
 }
 
 .daemon-size-selection {
@@ -541,6 +525,15 @@ header {
     color: #00ff41;
     text-shadow: 0 0 10px #00ff41;
     text-decoration: underline;
+}
+
+.grid-cell.display-solution-path {
+    background: #00ff41 !important;
+    color: #000 !important;
+    font-weight: bold;
+    border: 2px solid #ffff00 !important;
+    box-shadow: 0 0 10px #00ff41 !important;
+    margin: 0 !important;
 }
 
 @media (max-width: 768px) {
