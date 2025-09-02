@@ -506,7 +506,7 @@ function displaySolutionGrid(solution) {
                 if (idx in solutionMap) {
                     const stepNum = solutionMap[idx];
                     cellContent = `<div class="hex-code">${hexCode}</div><div class="step-number">${stepNum}</div>`;
-                    cellClass += ' solution-path';
+                    cellClass += ' display-solution-path';
                 } else {
                     cellContent = hexCode;
                 }
