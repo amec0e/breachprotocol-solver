@@ -470,6 +470,11 @@ header {
     margin-bottom: 20px;
 }
 
+.daemon-status h4 {
+    color: #ffff00 !important;
+    text-shadow: 0 0 5px #ffff00 !important;
+}
+
 .unlocked-daemon {
     color: #00ff41;
 }
@@ -534,6 +539,76 @@ header {
     border: 2px solid #ffff00 !important;
     box-shadow: 0 0 10px #00ff41 !important;
     margin: 0 !important;
+}
+
+.pagination-controls {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 255, 65, 0.3);
+    text-align: center;
+}
+
+.pagination-btn {
+    padding: 5px 10px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    border-radius: 3px;
+    transition: all 0.3s;
+    margin: 0 5px;
+}
+
+.pagination-btn:enabled {
+    background: #00ff41;
+    color: #000;
+}
+
+.pagination-btn:disabled {
+    background: #666;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.pagination-btn:enabled:hover {
+    background: #ffff00;
+    box-shadow: 0 0 5px #ffff00;
+}
+
+.pagination-info {
+    color: #ffff00;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    margin: 0 10px;
+}
+
+.alternatives-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alternatives-toggle-btn {
+    padding: 5px 10px;
+    background: #00ff41;
+    color: #000;
+    border: none;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 3px;
+    transition: all 0.3s;
+}
+
+.alternatives-toggle-btn:hover {
+    background: #ffff00;
+}
+
+.current-indicator {
+    color: #ffff00 !important;
+    text-shadow: 0 0 5px #ffff00 !important;
+    font-weight: bold !important;
 }
 
 @media (max-width: 768px) {
