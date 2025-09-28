@@ -13,7 +13,9 @@ class BreachProtocolSolver {
         this.worker = null;
         this.maxPaths = 100000;
         this.sortInterval = 200;
-        this.maxSolutions = 21;
+        this.maxSolutions = 64;
+        this.solutionsPerPage = 10;
+        this.currentPage = 0;
         this.currentSolutions = [];
         this.selectedSolutionIndex = 0;
         this.initializeButtonGroups();
@@ -120,8 +122,10 @@ class BreachProtocolSolver {
         solveBtn.disabled = true;
         
         this.showProgressUI();
+        
         this.currentSolutions = [];
         this.selectedSolutionIndex = 0;
+        this.currentPage = 0;
         
         try {
             this.daemonSequences = [];
@@ -213,6 +217,7 @@ class BreachProtocolSolver {
 
         this.currentSolutions = solutions;
         this.selectedSolutionIndex = 0;
+
         this.displayPrimarySolution(solutions[0], result);
 
         if (solutions.length > 1) {
@@ -241,7 +246,7 @@ class BreachProtocolSolver {
         const solutionDiv = document.getElementById('solution');
         
         solutionDiv.innerHTML = `
-            <h3>🗺️ Solution</h3>
+            <h3>🗺️  Solution</h3>
             <div id="solutionPath"></div>
             <div id="daemonStatus"></div>
         `;
@@ -252,14 +257,14 @@ class BreachProtocolSolver {
         newPathDiv.innerHTML = '';
         
         let statusHTML = '<div class="daemon-status">';
-        statusHTML += '<h4>Unlocked Daemons:</h4>';
+        statusHTML += '<h4>🔓  Unlocked Daemons:</h4>';
         for (let daemonIdx of solution.completed) {
             const daemonStr = this.daemonSequences[daemonIdx].join(',');
             statusHTML += `<div class="unlocked-daemon">${daemonIdx + 1}. ${daemonStr}</div>`;
         }
         
         if (solution.completed.length < this.daemonSequences.length) {
-            statusHTML += '<h4>Locked Daemons:</h4>';
+            statusHTML += '<h4>🔒  Locked Daemons:</h4>';
             for (let i = 0; i < this.daemonSequences.length; i++) {
                 if (!solution.completed.includes(i)) {
                     const daemonStr = this.daemonSequences[i].join(',');
@@ -274,7 +279,7 @@ class BreachProtocolSolver {
             const milliseconds = Math.floor((result.totalTime % 1) * 1000);
             
             statusHTML += `<div class="solution-stats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">`;
-            statusHTML += `<h4>Solution Statistics:</h4>`;
+            statusHTML += `<h4>📊  Solution Statistics:</h4>`;
             statusHTML += `<div>Selected Grid Size: ${this.gridWidth}x${this.gridHeight}</div>`;
             statusHTML += `<div>Selected Buffer Size: ${this.bufferSize}</div>`;
             statusHTML += `<div>Paths Explored: ${result.processedPaths || 'Unknown'}</div>`;
@@ -283,7 +288,7 @@ class BreachProtocolSolver {
             statusHTML += `</div>`;
         } else {
             statusHTML += `<div class="solution-stats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">`;
-            statusHTML += `<h4>Solution Statistics:</h4>`;
+            statusHTML += `<h4>📊  Solution Statistics:</h4>`;
             statusHTML += `<div>Selected Grid Size: ${this.gridWidth}x${this.gridHeight}</div>`;
             statusHTML += `<div>Selected Buffer Size: ${this.bufferSize}</div>`;
             statusHTML += `<div>Paths Explored: ${result.processedPaths || 'Unknown'}</div>`;
@@ -302,52 +307,81 @@ class BreachProtocolSolver {
         const solutionDiv = document.getElementById('solution');
         
         const alternativeCount = solutions.length - 1;
+        const totalPages = Math.ceil(alternativeCount / this.solutionsPerPage);
+        const startIndex = this.currentPage * this.solutionsPerPage + 1;
+        const endIndex = Math.min(startIndex + this.solutionsPerPage, solutions.length);
         
-        let alternativesHTML = `
-            <div class="alternatives-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">
-                <div class="alternatives-header" style="display: flex; align-items: center; gap: 10px;">
-                    <h4 style="color: #ffff00; text-shadow: 0 0 5px #ffff00; margin: 0;">Alternative Solutions: ${alternativeCount} found</h4>
-                    <button id="toggleAlternativesBtn" onclick="solver.toggleAlternatives()" style="
-                        padding: 5px 10px; 
-                        background: #00ff41; 
-                        color: #000; 
-                        border: none; 
-                        cursor: pointer; 
-                        font-family: 'Courier New', monospace; 
-                        font-size: 12px; 
-                        font-weight: bold;
-                        border-radius: 3px;
-                        transition: all 0.3s;
-                    " onmouseover="this.style.background='#ffff00'" onmouseout="this.style.background='#00ff41'">Show</button>
+        let alternativesSection = document.querySelector('.alternatives-section');
+        
+        if (!alternativesSection) {
+            let alternativesHTML = `
+                <div class="alternatives-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">
+                    <div class="alternatives-header">
+                        <h4 style="color: #ffff00; text-shadow: 0 0 5px #ffff00; margin: 0;">🔀  Alternative Solutions: ${alternativeCount} found</h4>
+                        <button id="toggleAlternativesBtn" class="alternatives-toggle-btn" onclick="solver.toggleAlternatives()">Show</button>
+                    </div>
+                    <div id="alternativesList" style="display: none; margin-top: 15px;">
+                        <div id="alternativesContent"></div>
+                        <div id="paginationControls"></div>
+                    </div>
                 </div>
-                <div id="alternativesList" style="display: none; margin-top: 15px;">
-        `;
+            `;
+            solutionDiv.innerHTML += alternativesHTML;
+        }
         
-        const primarySolution = solutions[0];
-        const primaryDaemonsList = primarySolution.completed.map(d => d + 1).join(', ');
-        alternativesHTML += `
-            <div class="alternative-solution selected" style="margin: 10px 0; padding: 10px; border: 2px solid #00ff41; background: rgba(0, 255, 65, 0.1); cursor: pointer;" 
-                 onclick="solver.selectSolution(0)">
-                <div style="color: #ffff00;">Solution 1 (Current) - ${primarySolution.count} daemon(s)</div>
-                <div style="color: #00ff41; font-size: 14px;">Daemons: ${primaryDaemonsList}</div>
-            </div>
-        `;
+        this.updateAlternativesContent(solutions, startIndex, endIndex, totalPages);
+    }
+
+    updateAlternativesContent(solutions, startIndex, endIndex, totalPages) {
+        const alternativesContent = document.getElementById('alternativesContent');
+        const paginationControls = document.getElementById('paginationControls');
         
-        solutions.slice(1).forEach((solution, index) => {
+        let contentHTML = '';
+        
+        if (this.currentPage === 0) {
+            const primarySolution = solutions[0];
+            const primaryDaemonsList = primarySolution.completed.map(d => d + 1).join(', ');
+            const isSelected = this.selectedSolutionIndex === 0;
+            
+            contentHTML += `
+                <div class="alternative-solution ${isSelected ? 'selected' : ''}" style="margin: 10px 0; padding: 10px; border: ${isSelected ? '2px solid #00ff41' : '1px solid rgba(0, 255, 65, 0.3)'}; background: ${isSelected ? 'rgba(0, 255, 65, 0.1)' : 'transparent'}; cursor: pointer;" 
+                     onclick="solver.selectSolution(0)">
+                    <div style="color: #ffff00;">Solution 1 ${isSelected ? '<span class="current-indicator">(Current)</span>' : ''} - ${primarySolution.count} daemon(s)</div>
+                    <div style="color: #00ff41; font-size: 14px;">Daemons: ${primaryDaemonsList}</div>
+                </div>
+            `;
+        }
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const solution = solutions[i];
             const daemonsList = solution.completed.map(d => d + 1).join(', ');
-            alternativesHTML += `
-                <div class="alternative-solution" style="margin: 10px 0; padding: 10px; border: 1px solid rgba(0, 255, 65, 0.3); cursor: pointer; transition: all 0.3s;" 
-                     onclick="solver.selectSolution(${index + 1})"
+            const isSelected = this.selectedSolutionIndex === i;
+            
+            contentHTML += `
+                <div class="alternative-solution ${isSelected ? 'selected' : ''}" style="margin: 10px 0; padding: 10px; border: ${isSelected ? '2px solid #00ff41' : '1px solid rgba(0, 255, 65, 0.3)'}; background: ${isSelected ? 'rgba(0, 255, 65, 0.1)' : 'transparent'}; cursor: pointer; transition: all 0.3s;" 
+                     onclick="solver.selectSolution(${i})"
                      onmouseover="this.style.borderColor='#ffff00'; this.style.backgroundColor='rgba(255, 255, 0, 0.1)'"
-                     onmouseout="this.style.borderColor='rgba(0, 255, 65, 0.3)'; this.style.backgroundColor='transparent'">
-                    <div style="color: #ffff00;">Solution ${index + 2} - ${solution.count} daemon(s)</div>
+                     onmouseout="this.style.borderColor='${isSelected ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}'; this.style.backgroundColor='${isSelected ? 'rgba(0, 255, 65, 0.1)' : 'transparent'}'">
+                    <div style="color: #ffff00;">Solution ${i + 1} ${isSelected ? '<span class="current-indicator">(Current)</span>' : ''} - ${solution.count} daemon(s)</div>
                     <div style="color: #00ff41; font-size: 14px;">Daemons: ${daemonsList}</div>
                 </div>
             `;
-        });
+        }
         
-        alternativesHTML += '</div></div>';
-        solutionDiv.innerHTML += alternativesHTML;
+        alternativesContent.innerHTML = contentHTML;
+        
+        let paginationHTML = '';
+        if (totalPages > 1) {
+            paginationHTML = `
+                <div class="pagination-controls">
+                    <button class="pagination-btn" onclick="solver.previousPage()" ${this.currentPage === 0 ? 'disabled' : ''}>Previous</button>
+                    <span class="pagination-info">Page ${this.currentPage + 1} of ${totalPages} (Showing ${startIndex} - ${endIndex - 1})</span>
+                    <button class="pagination-btn" onclick="solver.nextPage()" ${this.currentPage === totalPages - 1 ? 'disabled' : ''}>Next</button>
+                </div>
+            `;
+        }
+        
+        paginationControls.innerHTML = paginationHTML;
     }
 
     selectSolution(solutionIndex) {
@@ -359,26 +393,11 @@ class BreachProtocolSolver {
         const selectedSolution = this.currentSolutions[solutionIndex];
 
         this.displaySolutionGrid(selectedSolution);
-
-        document.querySelectorAll('.alternative-solution').forEach((element, index) => {
-            if (index === solutionIndex) {
-                element.classList.add('selected');
-                element.style.border = '2px solid #00ff41';
-                element.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
-                const titleDiv = element.querySelector('div');
-                if (titleDiv) {
-                    titleDiv.textContent = titleDiv.textContent.replace(/\(Current\)/g, '').replace(/ - /, ' (Current) - ');
-                }
-            } else {
-                element.classList.remove('selected');
-                element.style.border = '1px solid rgba(0, 255, 65, 0.3)';
-                element.style.backgroundColor = 'transparent';
-                const titleDiv = element.querySelector('div');
-                if (titleDiv) {
-                    titleDiv.textContent = titleDiv.textContent.replace(' (Current)', '');
-                }
-            }
-        });
+        
+        const totalPages = Math.ceil((this.currentSolutions.length - 1) / this.solutionsPerPage);
+        const startIndex = this.currentPage * this.solutionsPerPage + 1;
+        const endIndex = Math.min(startIndex + this.solutionsPerPage, this.currentSolutions.length);
+        this.updateAlternativesContent(this.currentSolutions, startIndex, endIndex, totalPages);
     }
 
     toggleAlternatives() {
@@ -391,6 +410,26 @@ class BreachProtocolSolver {
         } else {
             alternativesList.style.display = 'none';
             toggleBtn.textContent = 'Show';
+        }
+    }
+
+    nextPage() {
+        const totalPages = Math.ceil((this.currentSolutions.length - 1) / this.solutionsPerPage);
+        if (this.currentPage < totalPages - 1) {
+            this.currentPage++;
+            const startIndex = this.currentPage * this.solutionsPerPage + 1;
+            const endIndex = Math.min(startIndex + this.solutionsPerPage, this.currentSolutions.length);
+            this.updateAlternativesContent(this.currentSolutions, startIndex, endIndex, totalPages);
+        }
+    }
+
+    previousPage() {
+        if (this.currentPage > 0) {
+            this.currentPage--;
+            const startIndex = this.currentPage * this.solutionsPerPage + 1;
+            const endIndex = Math.min(startIndex + this.solutionsPerPage, this.currentSolutions.length);
+            const totalPages = Math.ceil((this.currentSolutions.length - 1) / this.solutionsPerPage);
+            this.updateAlternativesContent(this.currentSolutions, startIndex, endIndex, totalPages);
         }
     }
 
@@ -686,6 +725,7 @@ function reset() {
     solver.daemonCount = 1;
     solver.currentSolutions = [];
     solver.selectedSolutionIndex = 0;
+    solver.currentPage = 0;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
