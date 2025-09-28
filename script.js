@@ -13,6 +13,9 @@ class BreachProtocolSolver {
         this.worker = null;
         this.maxPaths = 100000;
         this.sortInterval = 200;
+        this.maxSolutions = 20;
+        this.currentSolutions = [];
+        this.selectedSolutionIndex = 0;
         this.initializeButtonGroups();
     }
 
@@ -88,7 +91,7 @@ class BreachProtocolSolver {
         if (debugInfo) {
             debugInfo.innerHTML = `
                 <div>Paths: ${processedPaths}/${maxPaths}</div>
-                <div>Daemons Found: ${daemonsFound}/${totalDaemons}</div>
+                <div>Daemons Found: ${daemonsFound}/${this.daemonSequences.length}</div>
             `;
             debugInfo.style.display = 'block';
         }
@@ -117,6 +120,8 @@ class BreachProtocolSolver {
         solveBtn.disabled = true;
         
         this.showProgressUI();
+        this.currentSolutions = [];
+        this.selectedSolutionIndex = 0;
         
         try {
             this.daemonSequences = [];
@@ -158,7 +163,7 @@ class BreachProtocolSolver {
                     );
                 } else if (e.data.type === 'complete') {
                     this.hideProgressUI();
-                    displaySolution(e.data.result);
+                    this.displaySolutions(e.data.result);
                     solveBtn.textContent = originalText;
                     solveBtn.disabled = false;
                     this.worker.terminate();
@@ -186,7 +191,8 @@ class BreachProtocolSolver {
                 daemonSequences: this.daemonSequences,
                 maxPaths: this.maxPaths,
                 sortInterval: this.sortInterval,
-                hexCodes: this.hexCodes
+                hexCodes: this.hexCodes,
+                maxSolutions: this.maxSolutions
             });
             
         } catch (error) {
@@ -196,6 +202,237 @@ class BreachProtocolSolver {
             solveBtn.textContent = originalText;
             solveBtn.disabled = false;
         }
+    }
+
+    displaySolutions(result) {
+        const solutions = result.solutions;
+        if (!solutions || solutions.length === 0) {
+            this.displayNoSolution(result);
+            return;
+        }
+
+        this.currentSolutions = solutions;
+        this.selectedSolutionIndex = 0;
+        this.displayPrimarySolution(solutions[0], result);
+
+        if (solutions.length > 1) {
+            this.displayAlternativeSolutions(solutions);
+        }
+
+        document.getElementById('solution').style.display = 'block';
+        document.getElementById('solutionGridSection').style.display = 'block';
+        document.getElementById('resetBtn').style.display = 'block';
+    }
+
+    displayNoSolution(result) {
+        const solutionDiv = document.getElementById('solution');
+        const pathDiv = document.getElementById('solutionPath');
+        const statusDiv = document.getElementById('daemonStatus');
+        const solutionGridSection = document.getElementById('solutionGridSection');
+        
+        pathDiv.innerHTML = '<p style="color: #ff6b6b;">No daemons can be completed with this buffer size.</p>';
+        statusDiv.innerHTML = '';
+        solutionGridSection.style.display = 'none';
+        solutionDiv.style.display = 'block';
+        document.getElementById('resetBtn').style.display = 'block';
+    }
+
+    displayPrimarySolution(solution, result) {
+        const solutionDiv = document.getElementById('solution');
+        
+        solutionDiv.innerHTML = `
+            <h3>🗺️ Solution</h3>
+            <div id="solutionPath"></div>
+            <div id="daemonStatus"></div>
+        `;
+        
+        const newPathDiv = document.getElementById('solutionPath');
+        const newStatusDiv = document.getElementById('daemonStatus');
+        
+        newPathDiv.innerHTML = '';
+        
+        let statusHTML = '<div class="daemon-status">';
+        statusHTML += '<h4>Unlocked Daemons:</h4>';
+        for (let daemonIdx of solution.completed) {
+            const daemonStr = this.daemonSequences[daemonIdx].join(',');
+            statusHTML += `<div class="unlocked-daemon">${daemonIdx + 1}. ${daemonStr}</div>`;
+        }
+        
+        if (solution.completed.length < this.daemonSequences.length) {
+            statusHTML += '<h4>Locked Daemons:</h4>';
+            for (let i = 0; i < this.daemonSequences.length; i++) {
+                if (!solution.completed.includes(i)) {
+                    const daemonStr = this.daemonSequences[i].join(',');
+                    statusHTML += `<div class="locked-daemon">${i + 1}. ${daemonStr}</div>`;
+                }
+            }
+        }
+        
+        if (result.totalTime !== undefined && result.totalTime !== null) {
+            const minutes = Math.floor(result.totalTime / 60);
+            const seconds = Math.floor(result.totalTime % 60);
+            const milliseconds = Math.floor((result.totalTime % 1) * 1000);
+            
+            statusHTML += `<div class="solution-stats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">`;
+            statusHTML += `<h4>Solution Statistics:</h4>`;
+            statusHTML += `<div>Selected Grid Size: ${this.gridWidth}x${this.gridHeight}</div>`;
+            statusHTML += `<div>Selected Buffer Size: ${this.bufferSize}</div>`;
+            statusHTML += `<div>Paths Explored: ${result.processedPaths || 'Unknown'}</div>`;
+            statusHTML += `<div>Time: ${minutes}m ${seconds}s ${milliseconds}ms</div>`;
+            statusHTML += `<div>Solutions Found: ${this.currentSolutions.length}</div>`;
+            statusHTML += `</div>`;
+        } else {
+            statusHTML += `<div class="solution-stats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">`;
+            statusHTML += `<h4>Solution Statistics:</h4>`;
+            statusHTML += `<div>Selected Grid Size: ${this.gridWidth}x${this.gridHeight}</div>`;
+            statusHTML += `<div>Selected Buffer Size: ${this.bufferSize}</div>`;
+            statusHTML += `<div>Paths Explored: ${result.processedPaths || 'Unknown'}</div>`;
+            statusHTML += `<div>Time: Not available</div>`;
+            statusHTML += `<div>Solutions Found: ${this.currentSolutions.length}</div>`;
+            statusHTML += `</div>`;
+        }
+        
+        statusHTML += '</div>';
+        newStatusDiv.innerHTML = statusHTML;
+        
+        this.displaySolutionGrid(solution);
+    }
+
+    displayAlternativeSolutions(solutions) {
+        const solutionDiv = document.getElementById('solution');
+        
+        const alternativeCount = solutions.length - 1;
+        
+        let alternativesHTML = `
+            <div class="alternatives-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">
+                <div class="alternatives-header" style="display: flex; align-items: center; gap: 10px;">
+                    <h4 style="color: #ffff00; text-shadow: 0 0 5px #ffff00; margin: 0;">Alternative Solutions: ${alternativeCount} found</h4>
+                    <button id="toggleAlternativesBtn" onclick="solver.toggleAlternatives()" style="
+                        padding: 5px 10px; 
+                        background: #00ff41; 
+                        color: #000; 
+                        border: none; 
+                        cursor: pointer; 
+                        font-family: 'Courier New', monospace; 
+                        font-size: 12px; 
+                        font-weight: bold;
+                        border-radius: 3px;
+                        transition: all 0.3s;
+                    " onmouseover="this.style.background='#ffff00'" onmouseout="this.style.background='#00ff41'">Show</button>
+                </div>
+                <div id="alternativesList" style="display: none; margin-top: 15px;">
+        `;
+        
+        const primarySolution = solutions[0];
+        const primaryDaemonsList = primarySolution.completed.map(d => d + 1).join(', ');
+        alternativesHTML += `
+            <div class="alternative-solution selected" style="margin: 10px 0; padding: 10px; border: 2px solid #00ff41; background: rgba(0, 255, 65, 0.1); cursor: pointer;" 
+                 onclick="solver.selectSolution(0)">
+                <div style="color: #ffff00;">Solution 1 (Current) - ${primarySolution.count} daemon(s)</div>
+                <div style="color: #00ff41; font-size: 14px;">Daemons: ${primaryDaemonsList}</div>
+            </div>
+        `;
+        
+        solutions.slice(1).forEach((solution, index) => {
+            const daemonsList = solution.completed.map(d => d + 1).join(', ');
+            alternativesHTML += `
+                <div class="alternative-solution" style="margin: 10px 0; padding: 10px; border: 1px solid rgba(0, 255, 65, 0.3); cursor: pointer; transition: all 0.3s;" 
+                     onclick="solver.selectSolution(${index + 1})"
+                     onmouseover="this.style.borderColor='#ffff00'; this.style.backgroundColor='rgba(255, 255, 0, 0.1)'"
+                     onmouseout="this.style.borderColor='rgba(0, 255, 65, 0.3)'; this.style.backgroundColor='transparent'">
+                    <div style="color: #ffff00;">Solution ${index + 2} - ${solution.count} daemon(s)</div>
+                    <div style="color: #00ff41; font-size: 14px;">Daemons: ${daemonsList}</div>
+                </div>
+            `;
+        });
+        
+        alternativesHTML += '</div></div>';
+        solutionDiv.innerHTML += alternativesHTML;
+    }
+
+    selectSolution(solutionIndex) {
+        if (solutionIndex < 0 || solutionIndex >= this.currentSolutions.length) {
+            return;
+        }
+
+        this.selectedSolutionIndex = solutionIndex;
+        const selectedSolution = this.currentSolutions[solutionIndex];
+
+        this.displaySolutionGrid(selectedSolution);
+
+        document.querySelectorAll('.alternative-solution').forEach((element, index) => {
+            if (index === solutionIndex) {
+                element.classList.add('selected');
+                element.style.border = '2px solid #00ff41';
+                element.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
+                const titleDiv = element.querySelector('div');
+                if (titleDiv) {
+                    titleDiv.textContent = titleDiv.textContent.replace(/\(Current\)/g, '').replace(/ - /, ' (Current) - ');
+                }
+            } else {
+                element.classList.remove('selected');
+                element.style.border = '1px solid rgba(0, 255, 65, 0.3)';
+                element.style.backgroundColor = 'transparent';
+                const titleDiv = element.querySelector('div');
+                if (titleDiv) {
+                    titleDiv.textContent = titleDiv.textContent.replace(' (Current)', '');
+                }
+            }
+        });
+    }
+
+    toggleAlternatives() {
+        const alternativesList = document.getElementById('alternativesList');
+        const toggleBtn = document.getElementById('toggleAlternativesBtn');
+        
+        if (alternativesList.style.display === 'none') {
+            alternativesList.style.display = 'block';
+            toggleBtn.textContent = 'Hide';
+        } else {
+            alternativesList.style.display = 'none';
+            toggleBtn.textContent = 'Show';
+        }
+    }
+
+    displaySolutionGrid(solution) {
+        const coords = solution.coords.split(';');
+        const solutionMap = {};
+        
+        for (let step = 0; step < coords.length; step++) {
+            const [row, col] = coords[step].split(',').map(Number);
+            const idx = row * this.gridWidth + col;
+            solutionMap[idx] = step + 1;
+        }
+        
+        let gridHTML = '<div class="grid-wrapper"><div class="solution-grid-container">';
+        gridHTML += '<div class="grid" style="grid-template-columns: repeat(' + this.gridWidth + ', 1fr);">';
+        
+        for (let i = 0; i < this.gridHeight; i++) {
+            for (let j = 0; j < this.gridWidth; j++) {
+                const idx = i * this.gridWidth + j;
+                const num = this.grid[idx];
+                let cellContent = '';
+                let cellClass = 'grid-cell';
+                
+                if (num > 0) {
+                    const hexCode = this.hexCodes[num - 1];
+                    if (idx in solutionMap) {
+                        const stepNum = solutionMap[idx];
+                        cellContent = `<div class="hex-code">${hexCode}</div><div class="step-number">${stepNum}</div>`;
+                        cellClass += ' display-solution-path';
+                    } else {
+                        cellContent = hexCode;
+                    }
+                } else {
+                    cellContent = '--';
+                }
+                
+                gridHTML += `<div class="${cellClass}">${cellContent}</div>`;
+            }
+        }
+        
+        gridHTML += '</div></div></div>';
+        document.getElementById('solutionGrid').innerHTML = gridHTML;
     }
 }
 
@@ -415,113 +652,6 @@ function clearGrid() {
     solver.currentGridPosition = 0;
 }
 
-function displaySolution(solution) {
-    const solutionDiv = document.getElementById('solution');
-    const pathDiv = document.getElementById('solutionPath');
-    const statusDiv = document.getElementById('daemonStatus');
-    const solutionGridSection = document.getElementById('solutionGridSection');
-    
-    if (solution.count === 0) {
-        pathDiv.innerHTML = '<p style="color: #ff6b6b;">No daemons can be completed with this buffer size.</p>';
-        statusDiv.innerHTML = '';
-        solutionGridSection.style.display = 'none';
-        solutionDiv.style.display = 'block';
-        return;
-    }
-    
-    pathDiv.innerHTML = '';
-    
-    let statusHTML = '<div class="daemon-status">';
-    statusHTML += '<h4>Unlocked Daemons:</h4>';
-    for (let daemonIdx of solution.completed) {
-        const daemonStr = solver.daemonSequences[daemonIdx].join(',');
-        statusHTML += `<div class="unlocked-daemon">${daemonIdx + 1}. ${daemonStr}</div>`;
-    }
-    
-    if (solution.completed.length < solver.daemonSequences.length) {
-        statusHTML += '<h4>Locked Daemons:</h4>';
-        for (let i = 0; i < solver.daemonSequences.length; i++) {
-            if (!solution.completed.includes(i)) {
-                const daemonStr = solver.daemonSequences[i].join(',');
-                statusHTML += `<div class="locked-daemon">${i + 1}. ${daemonStr}</div>`;
-            }
-        }
-    }
-    
-    if (solution.totalTime !== undefined && solution.totalTime !== null) {
-        const minutes = Math.floor(solution.totalTime / 60);
-        const seconds = Math.floor(solution.totalTime % 60);
-        const milliseconds = Math.floor((solution.totalTime % 1) * 1000);
-        
-        statusHTML += `<div class="solution-stats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">`;
-        statusHTML += `<h4>Solution Statistics:</h4>`;
-        statusHTML += `<div>Selected Grid Size: ${solver.gridWidth}x${solver.gridHeight}</div>`;
-        statusHTML += `<div>Selected Buffer Size: ${solver.bufferSize}</div>`;
-        statusHTML += `<div>Paths Explored: ${solution.processedPaths || 'Unknown'}</div>`;
-        statusHTML += `<div>Time: ${minutes}m ${seconds}s ${milliseconds}ms</div>`;
-        statusHTML += `</div>`;
-    } else {
-        statusHTML += `<div class="solution-stats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.3);">`;
-        statusHTML += `<h4>Solution Statistics:</h4>`;
-        statusHTML += `<div>Selected Grid Size: ${solver.gridWidth}x${solver.gridHeight}</div>`;
-        statusHTML += `<div>Selected Buffer Size: ${solver.bufferSize}</div>`;
-        statusHTML += `<div>Paths Explored: ${solution.processedPaths || 'Unknown'}</div>`;
-        statusHTML += `<div>Time: Not available</div>`;
-        statusHTML += `</div>`;
-    }
-    
-    statusHTML += '</div>';
-    
-    statusDiv.innerHTML = statusHTML;
-    
-    displaySolutionGrid(solution);
-    
-    solutionDiv.style.display = 'block';
-    solutionGridSection.style.display = 'block';
-    document.getElementById('resetBtn').style.display = 'block';
-}
-
-function displaySolutionGrid(solution) {
-    const coords = solution.coords.split(';');
-    const solutionMap = {};
-    
-    for (let step = 0; step < coords.length; step++) {
-        const [row, col] = coords[step].split(',').map(Number);
-        const idx = row * solver.gridWidth + col;
-        solutionMap[idx] = step + 1;
-    }
-    
-    let gridHTML = '<div class="grid-wrapper"><div class="solution-grid-container">';
-    gridHTML += '<div class="grid" style="grid-template-columns: repeat(' + solver.gridWidth + ', 1fr);">';
-    
-    for (let i = 0; i < solver.gridHeight; i++) {
-        for (let j = 0; j < solver.gridWidth; j++) {
-            const idx = i * solver.gridWidth + j;
-            const num = solver.grid[idx];
-            let cellContent = '';
-            let cellClass = 'grid-cell';
-            
-            if (num > 0) {
-                const hexCode = solver.hexCodes[num - 1];
-                if (idx in solutionMap) {
-                    const stepNum = solutionMap[idx];
-                    cellContent = `<div class="hex-code">${hexCode}</div><div class="step-number">${stepNum}</div>`;
-                    cellClass += ' display-solution-path';
-                } else {
-                    cellContent = hexCode;
-                }
-            } else {
-                cellContent = '--';
-            }
-            
-            gridHTML += `<div class="${cellClass}">${cellContent}</div>`;
-        }
-    }
-    
-    gridHTML += '</div></div></div>';
-    document.getElementById('solutionGrid').innerHTML = gridHTML;
-}
-
 function reset() {
     if (solver.worker) {
         solver.worker.terminate();
@@ -554,6 +684,8 @@ function reset() {
     solver.gridWidth = solver.gridHeight = 5;
     solver.bufferSize = 4;
     solver.daemonCount = 1;
+    solver.currentSolutions = [];
+    solver.selectedSolutionIndex = 0;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
