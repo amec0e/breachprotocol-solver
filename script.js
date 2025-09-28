@@ -13,7 +13,7 @@ class BreachProtocolSolver {
         this.worker = null;
         this.maxPaths = 100000;
         this.sortInterval = 200;
-        this.maxSolutions = 20;
+        this.maxSolutions = 21;
         this.currentSolutions = [];
         this.selectedSolutionIndex = 0;
         this.initializeButtonGroups();
