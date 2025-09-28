@@ -68,11 +68,9 @@ class BreachProtocolSolverWorker {
         return false;
     }
 
-    findOptimalPath(grid, gridWidth, gridHeight, bufferSize, daemonSequences, maxPaths, sortInterval) {
+    findOptimalPath(grid, gridWidth, gridHeight, bufferSize, daemonSequences, maxPaths, sortInterval, maxSolutions = 5) {
         const startTime = performance.now();
-        let bestPath = null;
-        let bestCount = 0;
-        let bestLength = 999;
+        const solutions = new Map();
         
         const queue = [];
         const visited = new Map();
@@ -105,12 +103,15 @@ class BreachProtocolSolverWorker {
                 const currentTime = performance.now();
                 const elapsed = (currentTime - startTime) / 1000;
                 
+                const bestSolutionCount = solutions.size > 0 ? 
+                    Math.max(...Array.from(solutions.values()).map(s => s.count)) : 0;
+                
                 postMessage({
                     type: 'progress',
                     progress: progress,
                     processedPaths: processedPaths,
                     maxPaths: maxPaths,
-                    daemonsFound: bestCount,
+                    daemonsFound: bestSolutionCount,
                     totalDaemons: maxDaemons,
                     elapsedTime: elapsed
                 });
@@ -135,6 +136,24 @@ class BreachProtocolSolverWorker {
             const completed = this.checkDaemonsCompleted(pathValues, daemonSequences);
             const count = completed.length;
             const length = current.path.length;
+            const daemonKey = completed.sort((a, b) => a - b).join(',');
+            
+            if (!solutions.has(daemonKey) || 
+                count > solutions.get(daemonKey).count ||
+                (count === solutions.get(daemonKey).count && length < solutions.get(daemonKey).length)) {
+                
+                const coords = current.path.map(p => `${p.row},${p.col}`).join(';');
+                const values = current.path.map(p => p.value.toString()).join(';');
+                
+                solutions.set(daemonKey, {
+                    path: [...current.path],
+                    completed: [...completed],
+                    count: count,
+                    length: length,
+                    coords: coords,
+                    values: values
+                });
+            }
             
             const stateKey = `${current.row},${current.col},${current.isHorizontal},${Array.from(current.visitedCells).sort().join('|')}`;
             
@@ -147,19 +166,8 @@ class BreachProtocolSolverWorker {
             
             visited.set(stateKey, { count, length });
             
-            if (count > bestCount || (count === bestCount && length < bestLength)) {
-                bestCount = count;
-                bestLength = length;
-                bestPath = {
-                    path: [...current.path],
-                    completed: [...completed],
-                    count: count,
-                    length: length
-                };
-                
-                if (count === maxDaemons) {
-                    break;
-                }
+            if (count === maxDaemons) {
+
             }
             
             if (current.remainingMoves > 0) {
@@ -238,28 +246,24 @@ class BreachProtocolSolverWorker {
         
         const endTime = performance.now();
         const totalTime = (endTime - startTime) / 1000;
+        const solutionArray = Array.from(solutions.values())
+            .filter(solution => solution.count > 0)
+            .sort((a, b) => {
+                if (a.count !== b.count) return b.count - a.count;
+                return a.length - b.length;
+            })
+            .slice(0, maxSolutions);
         
-        if (!bestPath) {
+        if (solutionArray.length === 0) {
             return {
-                coords: "",
-                values: "",
-                completed: [],
-                count: 0,
-                length: 0,
+                solutions: [],
                 processedPaths: processedPaths,
                 totalTime: totalTime
             };
         }
         
-        const coords = bestPath.path.map(p => `${p.row},${p.col}`).join(';');
-        const values = bestPath.path.map(p => p.value.toString()).join(';');
-        
         return {
-            coords: coords,
-            values: values,
-            completed: bestPath.completed,
-            count: bestPath.count,
-            length: bestPath.length,
+            solutions: solutionArray,
             processedPaths: processedPaths,
             totalTime: totalTime
         };
@@ -269,9 +273,9 @@ class BreachProtocolSolverWorker {
 const solverWorker = new BreachProtocolSolverWorker();
 
 self.onmessage = function(e) {
-    const { grid, gridWidth, gridHeight, bufferSize, daemonSequences, maxPaths, sortInterval, hexCodes } = e.data;
+    const { grid, gridWidth, gridHeight, bufferSize, daemonSequences, maxPaths, sortInterval, hexCodes, maxSolutions } = e.data;
     solverWorker.setHexCodes(hexCodes);
-    const result = solverWorker.findOptimalPath(grid, gridWidth, gridHeight, bufferSize, daemonSequences, maxPaths, sortInterval);
+    const result = solverWorker.findOptimalPath(grid, gridWidth, gridHeight, bufferSize, daemonSequences, maxPaths, sortInterval, maxSolutions);
     
     postMessage({
         type: 'complete',
