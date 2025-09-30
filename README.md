@@ -49,4 +49,4 @@ If you do not want to host locally (which can be done on a Pi 4 2GB) you can use
 
 The online version is currently set to 100k/200 this still gives a good balance between finding good solutions early on and allowing for a bigger space later in the game with more complex grids.
 
-This is free and open-source which you can use, modify, distribute as you see fit
+This is free to use, modify, distribute as you see fit
