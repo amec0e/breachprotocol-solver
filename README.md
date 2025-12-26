@@ -3,7 +3,7 @@ Client Side Web Solver for the breach protocol mini game in Cyberpunk2077, writt
 
 No OCR or AI, just good old fashioned button selection.
 
-Put `77-cyberpunk.conf` in `/etc/lighttpd/conf-available/`
+Put `77-cyberpunk.conf` in `/etc/lighttpd/conf-enabled/`
 
 Put all other files in `/var/www/html/cyberpunk`
 
